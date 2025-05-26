@@ -67,45 +67,116 @@ face_cascade=cv2.CascadeClassifier(haar_file)
 #     app.run()
 #     # app.run(debug=True)
 
+# import streamlit as st
+# import cv2
+# import numpy as np
+# from keras.models import load_model
+# from PIL import Image
+
+# # Load the pre-trained model
+# # model = load_model('facimodel.h5')
+# # face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+
+# # Define emotions
+# emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
+
+# # Streamlit UI
+# st.title("😄 Real-Time Emotion Detection")
+# st.write("Upload an image to detect faces and predict emotions.")
+
+# uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+
+# if uploaded_file is not None:
+#     # Convert to OpenCV image
+#     img = Image.open(uploaded_file)
+#     img_array = np.array(img.convert('RGB'))
+#     img_gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+
+#     # Detect faces
+#     faces = face_cascade.detectMultiScale(img_gray, 1.3, 5)
+
+#     for (x, y, w, h) in faces:
+#         roi_gray = img_gray[y:y+h, x:x+w]
+#         roi_gray = cv2.resize(roi_gray, (48, 48))
+#         roi = roi_gray.astype('float') / 255.0
+#         roi = np.reshape(roi, (1, 48, 48, 1))
+#         prediction = model.predict(roi)
+#         emotion = emotion_labels[np.argmax(prediction)]
+
+#         # Draw bounding box and label
+#         cv2.rectangle(img_array, (x, y), (x+w, y+h), (255, 0, 0), 2)
+#         cv2.putText(img_array, emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX,
+#                     1, (0, 255, 0), 2, cv2.LINE_AA)
+
+#     st.image(img_array, caption="Processed Image", channels="RGB")
+
 import streamlit as st
 import cv2
 import numpy as np
 from keras.models import load_model
 from PIL import Image
 
-# Load the pre-trained model
-# model = load_model('facimodel.h5')
+# # Load model and face detector
+# model = load_model('model.h5')
 # face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-# Define emotions
+# Emotion labels
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 
-# Streamlit UI
-st.title("😄 Real-Time Emotion Detection")
-st.write("Upload an image to detect faces and predict emotions.")
-
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
-
-if uploaded_file is not None:
-    # Convert to OpenCV image
-    img = Image.open(uploaded_file)
+def detect_emotions(img):
     img_array = np.array(img.convert('RGB'))
     img_gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+    detected_emotions = []
 
-    # Detect faces
     faces = face_cascade.detectMultiScale(img_gray, 1.3, 5)
-
     for (x, y, w, h) in faces:
         roi_gray = img_gray[y:y+h, x:x+w]
         roi_gray = cv2.resize(roi_gray, (48, 48))
         roi = roi_gray.astype('float') / 255.0
         roi = np.reshape(roi, (1, 48, 48, 1))
+
         prediction = model.predict(roi)
         emotion = emotion_labels[np.argmax(prediction)]
+        detected_emotions.append(emotion)
 
-        # Draw bounding box and label
+        # Draw on image
         cv2.rectangle(img_array, (x, y), (x+w, y+h), (255, 0, 0), 2)
         cv2.putText(img_array, emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX,
                     1, (0, 255, 0), 2, cv2.LINE_AA)
 
-    st.image(img_array, caption="Processed Image", channels="RGB")
+    return img_array, detected_emotions
+
+# Streamlit UI
+st.title("😄 Real-Time Emotion Detection")
+
+st.write("Choose input method:")
+
+option = st.radio("", ["Upload Image", "Use Webcam"])
+
+if option == "Upload Image":
+    uploaded_file = st.file_uploader("Upload an image...", type=["jpg", "jpeg", "png"])
+    if uploaded_file is not None:
+        img = Image.open(uploaded_file)
+        result_img, emotions = detect_emotions(img)
+        st.image(result_img, channels="RGB", caption="Processed Image")
+
+        if emotions:
+            st.success("Detected Emotions:")
+            for i, e in enumerate(emotions, 1):
+                st.write(f"Face {i}: **{e}**")
+        else:
+            st.warning("No face detected.")
+
+elif option == "Use Webcam":
+    photo = st.camera_input("Take a photo")
+    if photo is not None:
+        img = Image.open(photo)
+        result_img, emotions = detect_emotions(img)
+        st.image(result_img, channels="RGB", caption="Processed Image")
+
+        if emotions:
+            st.success("Detected Emotions:")
+            for i, e in enumerate(emotions, 1):
+                st.write(f"Face {i}: **{e}**")
+        else:
+            st.warning("No face detected.")
